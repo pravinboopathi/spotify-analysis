@@ -1,0 +1,156 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+```{r}
+# Importing necessary libraries
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(readr)
+```
+```{r}
+# Filepath of the dataset
+filepath <- "D:/Mini Project/DAT/spotify-2023.csv"
+
+# Load the spotify dataset
+spotify_df <- read_csv(filepath, locale = locale(encoding = "latin1"))
+
+# View the first 5 rows of the data
+head(spotify_df)
+```
+```{r}
+# Combine the columns into a single 'release_date' column
+spotify_df <- spotify_df %>%
+  mutate(release_date = make_date(released_year, released_month, released_day))
+```
+
+```{r}
+# Drop the original year, month, and day columns
+spotify_df <- spotify_df %>%
+  select(-released_year, -released_month, -released_day)
+```
+```{r}
+# Drop unnecessary columns
+spotify_df <- spotify_df %>%
+  select(-bpm, -key, -mode)
+```
+```{r}
+# Check for duplicates in the 'track_name' column and drop the row causing the issue
+spotify_df <- spotify_df %>%
+  filter(!duplicated(track_name))
+
+```
+```{r}
+# Convert 'streams' column to numeric format
+spotify_df <- spotify_df %>%
+  mutate(streams = as.numeric(streams))
+```
+```{r}
+# Sort the dataset by 'streams' in descending order
+spotify_df <- spotify_df %>%
+  arrange(desc(streams))
+```
+```{r}
+# Drop duplicates in 'track_name', keeping the first occurrence (highest streams)
+spotify_df <- spotify_df %>%
+  distinct(track_name, .keep_all = TRUE)
+
+# Check for null values and drop unnecessary columns
+spotify_df <- spotify_df %>%
+  select(-in_shazam_charts)
+```
+```{r}
+# Remove commas and convert 'in_deezer_playlists' column to numeric
+spotify_df <- spotify_df %>%
+  mutate(in_deezer_playlists = as.numeric(gsub(",", "", in_deezer_playlists)))
+
+# Display the structure of the dataframe
+str(spotify_df)
+```
+```{r}
+# Top 10 Artists Have Most Streamed Songs in 2023
+top_artists <- spotify_df %>%
+  count(`artist(s)_name`, sort = TRUE) %>%
+  head(10)
+```
+```{r}
+# Plot the top 10 artists
+ggplot(top_artists, aes(x = reorder(`artist(s)_name`, n), y = n)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Top 10 Artists Have Most Hits In 2023", x = "Artist", y = "Number of Hits") +
+  theme_minimal()
+```
+```{r}
+# Top 10 Streamed Songs in 2023
+top_10_songs <- spotify_df %>%
+  top_n(10, streams)
+```
+```{r}
+# Plot the top 10 streamed songs
+ggplot(top_10_songs, aes(x = reorder(track_name, streams), y = streams)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Top 10 Streamed Songs in 2023", x = "Track Name", y = "Streams") +
+  theme_minimal()
+```
+```{r}
+# Relationship Between Most Streamed Songs And Platforms In 2023
+# Spotify
+ggplot(spotify_df, aes(x = streams, y = in_spotify_playlists)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Relationship Between Most Streamed Songs And Spotify Playlists In 2023",
+       x = "Streams", y = "Number of Spotify Playlists") +
+  theme_minimal()
+```
+```{r}
+# Apple
+ggplot(spotify_df, aes(x = streams, y = in_apple_playlists)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Relationship Between Most Streamed Songs And Apple Playlists In 2023",
+       x = "Streams", y = "Number of Apple Playlists") +
+  theme_minimal()
+```
+```{r}
+# Deezer
+ggplot(spotify_df, aes(x = streams, y = in_deezer_playlists)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Relationship Between Most Streamed Songs And Deezer Playlists In 2023",
+       x = "Streams", y = "Number of Deezer Playlists") +
+  theme_minimal()
+```
+```{r}
+# Top 10 Songs vs. Danceability
+top_10_danceable_songs <- spotify_df %>%
+  arrange(desc(`danceability_%`)) %>%
+  head(10)
+```
+```{r}
+# Horizontal bar chart for danceability
+ggplot(top_10_danceable_songs, aes(x = `danceability_%`, y = reorder(track_name, `danceability_%`))) +
+  geom_bar(stat = "identity") +
+  labs(title = "Top 10 Songs vs. Danceability", x = "Danceability Score", y = "Song") +
+  theme_minimal()
+```
+```{r}
+# Pie chart for danceability
+pie(top_10_danceable_songs$`danceability_%`, labels = top_10_danceable_songs$track_name, main = "Top 10 Songs Danceability Distribution", col = rainbow(10))
+
+```
+```{r}
+# Distribution of Songs in Playlists by Platform in 2023
+platform_totals <- spotify_df %>%
+  summarise(Spotify = sum(in_spotify_playlists, na.rm = TRUE),
+            Apple = sum(in_apple_playlists, na.rm = TRUE),
+            Deezer = sum(in_deezer_playlists, na.rm = TRUE))
+```
+```{r}
+# Pie chart for platform distribution
+pie(unlist(platform_totals), labels = names(platform_totals), main = "Distribution of Songs in Playlists by Platform in 2023", col = rainbow(3))
+```
+
